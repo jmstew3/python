@@ -5,6 +5,7 @@ from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 from flask_cors import CORS
 import os
+import azure.core.exceptions
 
 # Load environment variables from .env file
 load_dotenv()
@@ -135,6 +136,40 @@ def get_roster_data():
             return jsonify({"error": "Failed to parse JSON data from the blob."}), 500
 
         return jsonify(roster_data)
+    except azure.core.exceptions.ResourceNotFoundError:
+        print(f"Blob {blob_name} not found in container {container_name}")
+        return jsonify({"error": "The specified blob does not exist."}), 404
+    except Exception as e:
+        print(f"An error occurred: {e}")  # Print the actual error message
+        return jsonify({"error": f"An error occurred while fetching the data: {e}"}), 500
+
+@app.route('/get-schedule-data', methods=['GET'])
+def get_schedule_data():
+    connection_string = os.getenv('AZURE_CONNECTION_STRING')
+    container_name = 'nflschedule1e835d00-19e7-11ef-bf0e-0ddb63396b97'
+    blob_name = 'TEN_schedule_2024.json'
+
+    # Initialize BlobServiceClient
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    blob_client = blob_service_client.get_blob_client(container_name, blob_name)
+
+    try:
+        # Download the blob's contents as a string
+        blob_data = blob_client.download_blob().readall()
+
+        # Check if the blob data is empty
+        if not blob_data:
+            print(f"Blob {blob_name} is empty")
+            return jsonify({"error": "The blob is empty."}), 404
+
+        # Attempt to parse the blob data as JSON
+        try:
+            schedule_data = json.loads(blob_data)
+        except json.JSONDecodeError as json_error:
+            print(f"Error decoding JSON: {json_error}")
+            return jsonify({"error": "Failed to parse JSON data from the blob."}), 500
+
+        return jsonify(schedule_data)
     except azure.core.exceptions.ResourceNotFoundError:
         print(f"Blob {blob_name} not found in container {container_name}")
         return jsonify({"error": "The specified blob does not exist."}), 404
