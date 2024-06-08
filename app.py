@@ -22,7 +22,7 @@ def fetch_and_upload_draft_data():
     draft_data_dict = json.loads(draft_data_json)
 
     # Upload the fetched data to Azure Blob Storage
-    connection_string = os.getenv('AZURE_CONNECTION_STRING')
+    connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
     container_name = 'nfl-draft-data'
     blob_name = 'draft_picks_1980-2024.json'
 
