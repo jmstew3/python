@@ -36,7 +36,7 @@ conn_str = (
 
 # SQL table creation query
 create_table_query = '''
-CREATE TABLE NFLDraft (
+CREATE TABLE NFLRoster (
     age FLOAT,
     allpro INT,
     car_av FLOAT,

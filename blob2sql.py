@@ -7,6 +7,7 @@ import json
 # Load environment variables from .env file
 load_dotenv()
 
+# TRANSFER JSON DATA FROM NFL-DRAFT-DATA CONTAINER TO AZURE SQL
 # Azure Storage credentials
 connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 container_name = 'nfl-draft-data'
@@ -35,24 +36,47 @@ conn_str = (
     f'PWD={sql_password}'
 )
 
-# Connect to the database
-conn = pyodbc.connect(conn_str)
-cursor = conn.cursor()
+try:
+    # Connect to the database
+    conn = pyodbc.connect(conn_str)
+    cursor = conn.cursor()
+    print("Connected to SQL Server")
 
-# Insert data into SQL Database
-for player in data:
-    if player['pfr_player_id']:  # Ensure 'pfr_player_id' is not null
-        # Check if the record already exists
-        cursor.execute("SELECT COUNT(*) FROM NFLDraft WHERE pfr_player_id = ?", player['pfr_player_id'])
-        if cursor.fetchone()[0] == 0:  # If no existing record is found
-            cursor.execute("""
-            INSERT INTO NFLDraft (age, allpro, car_av, category, cfb_player_id, college, def_ints, def_sacks, def_solo_tackles, dr_av, games, gsis_id, hof, pass_attempts, pass_completions, pass_ints, pass_tds, pass_yards, pfr_player_id, pfr_player_name, pick, position, probowls, rec_tds, rec_yards, receptions, round, rush_atts, rush_tds, rush_yards, season, seasons_started, side, team, [to], w_av)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, 
-            player.get('age', None), player.get('allpro', None), player.get('car_av', None), player.get('category', None), player.get('cfb_player_id', None), player.get('college', None), player.get('def_ints', None), player.get('def_sacks', None), player.get('def_solo_tackles', None), player.get('dr_av', None), player.get('games', None), player.get('gsis_id', None), player.get('hof', None), player.get('pass_attempts', None), player.get('pass_completions', None), player.get('pass_ints', None), player.get('pass_tds', None), player.get('pass_yards', None), player.get('pfr_player_id', None), player.get('pfr_player_name', None), player.get('pick', None), player.get('position', None), player.get('probowls', None), player.get('rec_tds', None), player.get('rec_yards', None), player.get('receptions', None), player.get('round', None), player.get('rush_atts', None), player.get('rush_tds', None), player.get('rush_yards', None), player.get('season', None), player.get('seasons_started', None), player.get('side', None), player.get('team', None), player.get('to', None), player.get('w_av', None))
+    # Insert data into SQL Database
+    insert_query = """
+    INSERT INTO NFLDraft (season, round, pick, team, gsis_id, pfr_player_id, cfb_player_id, pfr_player_name, hof, position, category, side, college, age, [to], allpro, probowls, seasons_started, w_av, car_av, dr_av, games, pass_completions, pass_attempts, pass_yards, pass_tds, pass_ints, rush_atts, rush_yards, rush_tds, receptions, rec_yards, rec_tds, def_solo_tackles, def_ints, def_sacks)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
 
-conn.commit()
+    for player in data:
+        try:
+            if player['pfr_player_id']:
+                # Check if the record already exists
+                cursor.execute("SELECT COUNT(*) FROM NFLDraft WHERE pfr_player_id = ?", player['pfr_player_id'])
+                if cursor.fetchone()[0] == 0:  # If no existing record is found
+                    cursor.execute(insert_query, (
+                        player.get('season', None), player.get('round', None), player.get('pick', None), player.get('team', None),
+                        player.get('gsis_id', None), player.get('pfr_player_id', None), player.get('cfb_player_id', None), player.get('pfr_player_name', None),
+                        player.get('hof', None), player.get('position', None), player.get('category', None), player.get('side', None),
+                        player.get('college', None), player.get('age', None), player.get('to', None), player.get('allpro', None),
+                        player.get('probowls', None), player.get('seasons_started', None), player.get('w_av', None), player.get('car_av', None),
+                        player.get('dr_av', None), player.get('games', None), player.get('pass_completions', None), player.get('pass_attempts', None),
+                        player.get('pass_yards', None), player.get('pass_tds', None), player.get('pass_ints', None), player.get('rush_atts', None),
+                        player.get('rush_yards', None), player.get('rush_tds', None), player.get('receptions', None), player.get('rec_yards', None),
+                        player.get('rec_tds', None), player.get('def_solo_tackles', None), player.get('def_ints', None), player.get('def_sacks', None)
+                    ))
+                    conn.commit()  # Commit each insert
+        except pyodbc.Error as e:
+            print(f"Error processing player {player.get('pfr_player_id', 'Unknown')}: {e}")
+        except Exception as e:
+            print(f"Unexpected error processing player {player.get('pfr_player_id', 'Unknown')}: {e}")
 
-# Close the connection
-cursor.close()
-conn.close()
+    print("Data inserted successfully")
+
+except pyodbc.Error as e:
+    print(f"Error connecting to SQL Server: {e}")
+
+finally:
+    # Close the connection
+    cursor.close()
+    conn.close()
